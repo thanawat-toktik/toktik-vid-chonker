@@ -1,1 +1,76 @@
-print("Hello World")
+import os
+from pathlib import Path
+from dotenv import load_dotenv
+import boto3
+from botocore.client import Config
+import shutil
+import ffmpeg
+
+def download_file_from_s3(client, object_name):
+    file_name, file_extension = object_name.split(".")
+    temp_folder = Path("/tmp") / file_name
+    temp_folder.mkdir(parents=True, exist_ok=True)
+
+    download_target = Path(f"{temp_folder}/{file_name}.{file_extension}")
+    client.download_file(
+        os.environ.get("S3_CONVERTED_BUCKET_NAME"), object_name, download_target
+    )
+    return download_target
+
+
+def split_video(file_path, chunk_size_seconds):
+    file_name, _ = os.path.splitext(file_path)
+    
+    try:
+        ffmpeg.input(
+                file_path
+            ).output(
+                f"{file_name}.m3u8",
+                format="hls",
+                hls_time=chunk_size_seconds,
+                hls_list_size=0
+            ).run(capture_stdout=True, capture_stderr=True)
+    
+    except ffmpeg.Error as e:
+        print('stdout:', e.stdout.decode('utf8'))
+        print('stderr:', e.stderr.decode('utf8'))
+        raise e
+    
+    os.remove(file_path)
+
+    return Path(f"{file_name}.m3u8") # TODO: make it target the folder
+
+
+
+def upload_converted_to_s3(client, file_path: Path):
+    # TODO: upload every file in the folder
+    client.upload_file(
+        file_path,
+        os.environ.get("S3_CHUNKED_BUCKET_NAME"),
+        file_path.name,
+        ExtraArgs={"ContentType": "video/mp4", "ACL": "public-read"},
+    )
+    temp_folder = file_path.parent
+    shutil.rmtree(temp_folder)
+    return True
+
+
+if __name__ == "__main__":
+    load_dotenv()
+    s3_client = boto3.client(
+        "s3",
+        region_name=os.environ.get("S3_REGION"),
+        endpoint_url=os.environ.get("S3_RAW_ENDPOINT"),
+        aws_access_key_id=os.environ.get("S3_ACCESS_KEY"),
+        aws_secret_access_key=os.environ.get("S3_SECRET_ACCESS_KEY"),
+        config=Config(s3={"addressing_style": "virtual"}, signature_version="v4"),
+    )
+
+    downloaded_path = download_file_from_s3(s3_client, "IMG_6376_2.MOV")
+    
+    destination = Path("temp_vid/done/")
+    result_path = split_video(downloaded_path, destination, 10)
+    
+    upload_converted_to_s3(s3_client, result_path)
+
+print("exited")
