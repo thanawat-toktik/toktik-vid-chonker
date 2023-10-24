@@ -20,7 +20,6 @@ def download_file_from_s3(client, object_name):
 
 def split_video(file_path, chunk_size_seconds):
     file_name, _ = os.path.splitext(file_path)
-    
     try:
         ffmpeg.input(
                 file_path
@@ -36,22 +35,32 @@ def split_video(file_path, chunk_size_seconds):
         print('stderr:', e.stderr.decode('utf8'))
         raise e
     
-    os.remove(file_path)
+    parent_folder = os.path.dirname(file_path) # get parent folder
+    os.remove(file_path) # remove mp4 file
 
-    return Path(f"{file_name}.m3u8") # TODO: make it target the folder
+    return Path(parent_folder)
 
 
 
-def upload_converted_to_s3(client, file_path: Path):
-    # TODO: upload every file in the folder
-    client.upload_file(
-        file_path,
-        os.environ.get("S3_CHUNKED_BUCKET_NAME"),
-        file_path.name,
-        ExtraArgs={"ContentType": "video/mp4", "ACL": "public-read"},
-    )
-    temp_folder = file_path.parent
-    shutil.rmtree(temp_folder)
+def upload_chunked_to_s3(client, folder_path: Path):
+    MIMETYPE = {
+        "m3u8": "application/x-mpegURL",
+        "ts": "	video/mp2t",
+    }
+    for hls_file in os.listdir(folder_path):
+        file_extension = hls_file.split(".")[1].lower()
+        mimetype = MIMETYPE.get(file_extension, None)
+        if not mimetype:
+            continue
+
+        client.upload_file(
+            Path(folder_path) / hls_file, # where to get the file
+            os.environ.get("S3_CHUNKED_BUCKET_NAME"),
+            f"{folder_path.name}/{hls_file}", # where to upload at (with folder)
+            ExtraArgs={"ContentType": mimetype, "ACL": "public-read"},
+        )
+
+    shutil.rmtree(folder_path)
     return True
 
 
@@ -66,11 +75,16 @@ if __name__ == "__main__":
         config=Config(s3={"addressing_style": "virtual"}, signature_version="v4"),
     )
 
-    downloaded_path = download_file_from_s3(s3_client, "IMG_6376_2.MOV")
+    print("Start downloading")
+    downloaded_path = download_file_from_s3(s3_client, "IMG_6376_2.mp4")
+    print("Done downloading")
     
-    destination = Path("temp_vid/done/")
-    result_path = split_video(downloaded_path, destination, 10)
+    print("Start converting to chunks")
+    result_path = split_video(downloaded_path, 10)
+    print("Finished chunking")
     
-    upload_converted_to_s3(s3_client, result_path)
+    print("Start uploading")
+    upload_chunked_to_s3(s3_client, result_path)
+    print("Finished uploading")
 
 print("exited")
