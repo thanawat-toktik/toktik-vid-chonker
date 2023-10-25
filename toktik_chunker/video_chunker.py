@@ -13,7 +13,7 @@ def download_file_from_s3(client, object_name):
 
     download_target = Path(f"{temp_folder}/{file_name}.{file_extension}")
     client.download_file(
-        os.environ.get("S3_CONVERTED_BUCKET_NAME"), object_name, download_target
+        os.environ.get("S3_BUCKET_NAME_CONVERTED"), object_name, download_target
     )
     return download_target
 
@@ -55,7 +55,7 @@ def upload_chunked_to_s3(client, folder_path: Path):
 
         client.upload_file(
             Path(folder_path) / hls_file, # where to get the file
-            os.environ.get("S3_CHUNKED_BUCKET_NAME"),
+            os.environ.get("S3_BUCKET_NAME_CHUNKED"),
             f"{folder_path.name}/{hls_file}", # where to upload at (with folder)
             ExtraArgs={"ContentType": mimetype, "ACL": "public-read"},
         )
