@@ -27,7 +27,7 @@ app = create_celery_app()
 
 
 @app.task
-def do_conversion(object_name):
+def do_chunking(object_name):
     load_dotenv()
     client = boto3.client(
         "s3",
