@@ -87,4 +87,4 @@ if __name__ == "__main__":
     upload_chunked_to_s3(s3_client, result_path)
     print("Finished uploading")
 
-print("exited")
+    print("exited")
