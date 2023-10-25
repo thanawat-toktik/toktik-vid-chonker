@@ -10,7 +10,7 @@ from toktik_chunker.video_chunker import download_file_from_s3, split_video, upl
 
 def create_celery_app():
     load_dotenv()
-    internal_app = Celery("converter",
+    internal_app = Celery("chunker",
                           broker=f"redis://"
                                  f"{os.environ.get('REDIS_HOSTNAME', 'localhost')}"
                                  f":{os.environ.get('REDIS_PORT', '6381')}"
