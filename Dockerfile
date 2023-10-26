@@ -15,4 +15,4 @@ RUN poetry install --no-dev
 RUN apt-get update && apt-get install -y ffmpeg
 
 # run the application
-CMD ["poetry", "run", "celery", "-A", "toktik_converter.tasks.app", "worker", "-l", "INFO"]
+CMD ["poetry", "run", "celery", "-A", "toktik_chunker.tasks.app", "worker", "-l", "INFO"]
