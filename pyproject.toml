@@ -3,7 +3,6 @@ name = "toktik-chunker"
 version = "0.1.0"
 description = ""
 authors = ["thanawinboon <pokepat27@gmail.com>"]
-readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.11"
