@@ -7,6 +7,7 @@ import shutil
 import ffmpeg
 
 def download_file_from_s3(client, object_name):
+    # print("Start downloading")
     file_name, file_extension = object_name.split(".")
     temp_folder = Path("/tmp") / file_name
     temp_folder.mkdir(parents=True, exist_ok=True)
@@ -15,10 +16,12 @@ def download_file_from_s3(client, object_name):
     client.download_file(
         os.environ.get("S3_BUCKET_NAME_CONVERTED"), object_name, download_target
     )
+    # print("Done downloading")
     return download_target
 
 
 def split_video(file_path, chunk_size_seconds):
+    # print("Start converting to chunks")
     file_name, _ = os.path.splitext(file_path)
     try:
         ffmpeg.input(
@@ -37,12 +40,13 @@ def split_video(file_path, chunk_size_seconds):
     
     parent_folder = os.path.dirname(file_path) # get parent folder
     os.remove(file_path) # remove mp4 file
-
+    # print("Finished chunking")
     return Path(parent_folder)
 
 
 
 def upload_chunked_to_s3(client, folder_path: Path):
+    # print("Start uploading")
     MIMETYPE = {
         "m3u8": "application/x-mpegURL",
         "ts": "	video/mp2t",
@@ -59,7 +63,7 @@ def upload_chunked_to_s3(client, folder_path: Path):
             f"{folder_path.name}/{hls_file}", # where to upload at (with folder)
             ExtraArgs={"ContentType": mimetype, "ACL": "public-read"},
         )
-
+    # print("Finished uploading")
     shutil.rmtree(folder_path)
     return True
 
@@ -75,16 +79,7 @@ if __name__ == "__main__":
         config=Config(s3={"addressing_style": "virtual"}, signature_version="v4"),
     )
 
-    print("Start downloading")
     downloaded_path = download_file_from_s3(s3_client, "IMG_6376_2.mp4")
-    print("Done downloading")
-    
-    print("Start converting to chunks")
     result_path = split_video(downloaded_path, 10)
-    print("Finished chunking")
-    
-    print("Start uploading")
     upload_chunked_to_s3(s3_client, result_path)
-    print("Finished uploading")
-
     print("exited")
