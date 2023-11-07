@@ -40,7 +40,7 @@ def do_chunking(object_name):
 
     try:
         downloaded_file = download_file_from_s3(client, object_name)
-        converted_file = split_video(downloaded_file, os.environ.get('CHUNK_LENGTH_SECONDS', 10))
+        converted_file = split_video(downloaded_file, os.environ.get('CHUNK_LENGTH_SECONDS', 2))
         return upload_chunked_to_s3(client, converted_file)
     except Exception as e:
         print(e)
